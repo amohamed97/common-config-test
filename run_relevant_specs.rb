@@ -127,7 +127,42 @@ class RelevantSpecRunner
 
   def run_specs
     spec_list = @spec_files.sort.join(' ')
-    exec("bundle exec rspec --format progress --fail-fast #{spec_list}")
+
+    # Run specs and capture success status
+    if system("bundle exec rspec --format progress --fail-fast #{spec_list}")
+      exit 0
+    else
+      handle_failed_specs
+    end
+  end
+
+  def handle_failed_specs
+    if prompt_to_proceed?
+      warn "[relevant-specs] Proceeding with push despite spec failures."
+      exit 0
+    else
+      warn "[relevant-specs] Push aborted. Please fix the specs."
+      exit 1
+    end
+  end
+
+  def prompt_to_proceed?
+    # If we can't prompt, we assume failure
+    return false unless File.exist?('/dev/tty')
+
+    warn "\n[relevant-specs] Some specs failed."
+    print "[relevant-specs] Do you want to proceed with the push anyway? [y/N] "
+    STDOUT.flush
+
+    begin
+      File.open('/dev/tty', 'r') do |tty|
+        response = tty.gets.to_s.strip.downcase
+        return ['y', 'yes'].include?(response)
+      end
+    rescue => e
+      warn "[relevant-specs] Cannot prompt (#{e.message}); aborting."
+      false
+    end
   end
 end
 
@@ -136,5 +171,3 @@ if __FILE__ == $0
   runner = RelevantSpecRunner.new
   runner.run
 end
-
-
