@@ -147,14 +147,9 @@ class RelevantSpecRunner
   end
 
   def prompt_to_proceed?
-    if File.exist?('/dev/tty')
-      prompt_via_tty
-    else
-      prompt_via_gui
-    end
-  end
+    # If we can't prompt, we assume failure
+    return false unless File.exist?('/dev/tty')
 
-  def prompt_via_tty
     warn "\n[relevant-specs] Some specs failed."
     print "[relevant-specs] Do you want to proceed with the push anyway? [y/N] "
     STDOUT.flush
@@ -165,33 +160,9 @@ class RelevantSpecRunner
         return ['y', 'yes'].include?(response)
       end
     rescue => e
-      warn "[relevant-specs] Cannot prompt via TTY (#{e.message})."
+      warn "[relevant-specs] Cannot prompt (#{e.message}); aborting."
       false
     end
-  end
-
-  def prompt_via_gui
-    # macOS (osascript)
-    if RUBY_PLATFORM =~ /darwin/
-      begin
-        # Use System Events to ensure the dialog appears on top
-        script = <<~APPLESCRIPT
-          tell application "System Events"
-            activate
-            set result to button returned of (display dialog "[relevant-specs] Some specs failed.\nDo you want to proceed with the push anyway?" buttons {"No", "Yes"} default button "No" with icon caution)
-          end tell
-        APPLESCRIPT
-
-        response = `osascript -e '#{script}' 2>/dev/null`.strip
-        return response == "Yes"
-      rescue
-        # Fallback if osascript fails
-      end
-    end
-
-    warn "[relevant-specs] Specs failed and no interactive prompt available."
-    warn "[relevant-specs] To bypass, use: git push --no-verify"
-    false
   end
 end
 
@@ -200,5 +171,3 @@ if __FILE__ == $0
   runner = RelevantSpecRunner.new
   runner.run
 end
-
-
